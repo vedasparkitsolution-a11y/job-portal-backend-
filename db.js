@@ -1340,11 +1340,15 @@ const hasValidSupabaseUrl = process.env.DATABASE_URL &&
     !process.env.DATABASE_URL.includes('[YOUR-PASSWORD]');
 
 if (hasValidSupabaseUrl) {
-    pgPool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false },
-        connectionTimeoutMillis: 10000
-    });
+    if (!pgPool) {
+        pgPool = new Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: { rejectUnauthorized: false },
+            max: 5,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 15000
+        });
+    }
 
     pgPool.connect((err, client, release) => {
         if (!err && client) {
@@ -1352,7 +1356,9 @@ if (hasValidSupabaseUrl) {
             lastError = null;
             console.log('✅ Connected to Supabase PostgreSQL database!');
             release();
-            initSchemaAndSeeds();
+            if (!process.env.VERCEL) {
+                initSchemaAndSeeds();
+            }
         } else {
             lastError = err ? err.message : 'Unknown connect error';
             console.warn('⚠️ Supabase connection failed:', lastError);
