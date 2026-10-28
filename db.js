@@ -10,10 +10,16 @@ const path = require('path');
 const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
-let activeEngine = 'sqlite'; // 'supabase' | 'mysql' | 'sqlite'
+const hasSupabase = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('supabase.com') && !process.env.DATABASE_URL.includes('[YOUR-PASSWORD]');
+
+let activeEngine = hasSupabase ? 'supabase' : 'sqlite'; // 'supabase' | 'mysql' | 'sqlite'
 let sqliteDb = null;
 let mysqlPool = null;
-let pgPool = null;
+let pgPool = hasSupabase ? new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000
+}) : null;
 
 function translateSql(sql, engine) {
     if (!sql) return sql;
@@ -33,7 +39,8 @@ function translateSql(sql, engine) {
             .replace(/INSERT\s+IGNORE\s+INTO/gi, 'INSERT INTO')
             .replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT INTO')
             .replace(/INSERT\s+OR\s+REPLACE\s+INTO/gi, 'INSERT INTO')
-            .replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP');
+            .replace(/datetime\('now'\)/gi, 'CURRENT_TIMESTAMP')
+            .replace(/\bcreatedAt\b/g, 'createdat');
 
         let idx = 1;
         pgSql = pgSql.replace(/\?/g, () => `$${idx++}`);
