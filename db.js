@@ -15,6 +15,7 @@ const hasSupabase = process.env.DATABASE_URL && process.env.DATABASE_URL.include
 let activeEngine = hasSupabase ? 'supabase' : 'sqlite'; // 'supabase' | 'mysql' | 'sqlite'
 let sqliteDb = null;
 let mysqlPool = null;
+let lastError = null;
 let pgPool = hasSupabase ? new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
@@ -83,6 +84,12 @@ const candidatePool = mysql.createPool({
 });
 
 const db = {
+    get activeEngine() {
+        return activeEngine;
+    },
+    get lastError() {
+        return lastError;
+    },
     get pool() {
         return activeEngine === 'supabase' ? pgPool : mysqlPool;
     },
@@ -1342,12 +1349,16 @@ if (hasValidSupabaseUrl) {
     pgPool.connect((err, client, release) => {
         if (!err && client) {
             activeEngine = 'supabase';
+            lastError = null;
             console.log('✅ Connected to Supabase PostgreSQL database!');
             release();
             initSchemaAndSeeds();
         } else {
-            console.warn('⚠️ Supabase connection failed:', err ? err.message : 'Unknown error');
-            fallbackToMysqlOrSqlite();
+            lastError = err ? err.message : 'Unknown connect error';
+            console.warn('⚠️ Supabase connection failed:', lastError);
+            if (!process.env.VERCEL) {
+                fallbackToMysqlOrSqlite();
+            }
         }
     });
 } else {

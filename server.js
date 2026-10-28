@@ -19,6 +19,7 @@ const interviewRoutes = require('./routes/interviewRoutes');
 const dataRequestRoutes = require('./routes/dataRequestRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
 const mobileRoutes = require('./routes/mobileRoutes');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -66,7 +67,14 @@ app.get('/sitemap.xml', (req, res, next) => settingsRoutes(req, res, next));
 
 // Health check
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Job Portal API is running' });
+    res.json({ 
+        status: 'ok', 
+        message: 'Job Portal API is running',
+        activeEngine: db.activeEngine,
+        lastError: db.lastError,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        databaseUrlMasked: process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':***@') : null
+    });
 });
 
 // Start server (local dev only)
