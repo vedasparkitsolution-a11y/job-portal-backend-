@@ -439,7 +439,7 @@ const handleGetAllJobs = (req, res) => {
         query += ` ORDER BY posted_at DESC, createdAt DESC`;
 
         db.all(query, params, (err, rows) => {
-            if (err) return res.status(500).json({ message: 'Error fetching jobs' });
+            if (err) return res.status(500).json({ message: 'Error fetching jobs', error: err.message, sql: query });
 
             let result = (rows || []).map(j => {
                 let jobLat = j.latitude;
