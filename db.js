@@ -22,6 +22,51 @@ let pgPool = hasSupabase ? new Pool({
     connectionTimeoutMillis: 10000
 }) : null;
 
+function normalizePgRow(row) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) return row;
+    for (const key of Object.keys(row)) {
+        const val = row[key];
+        const lower = key.toLowerCase();
+        if (lower === 'postedcount') {
+            row.postedCount = Number(val);
+        } else if (lower === 'planname') {
+            row.planName = val;
+        } else if (lower === 'jobsused') {
+            row.jobsUsed = Number(val);
+        } else if (lower === 'expirydate') {
+            row.expiryDate = val;
+        } else if (lower === 'startdate') {
+            row.startDate = val;
+        } else if (lower === 'contactsviewed') {
+            row.contactsViewed = Number(val);
+        } else if (lower === 'createdat') {
+            row.createdAt = val;
+        } else if (lower === 'companyname') {
+            row.companyName = val;
+        } else if (lower === 'hrname') {
+            row.hrName = val;
+        } else if (lower === 'userid') {
+            row.userId = val;
+        } else if (lower === 'companyid') {
+            row.companyId = val;
+        } else if (lower === 'jobid') {
+            row.jobId = val;
+        } else if (lower === 'jobtype') {
+            row.jobType = val;
+        }
+    }
+    return new Proxy(row, {
+        get(target, prop, receiver) {
+            if (typeof prop === 'string') {
+                if (prop in target) return target[prop];
+                const lower = prop.toLowerCase();
+                if (lower in target) return target[lower];
+            }
+            return Reflect.get(target, prop, receiver);
+        }
+    });
+}
+
 function translateSql(sql, engine) {
     if (!sql) return sql;
     if (engine === 'supabase' || engine === 'postgres') {
@@ -102,7 +147,7 @@ const db = {
             const cleanedSql = translateSql(sql, 'supabase');
             pgPool.query(cleanedSql, params || [], (err, results) => {
                 if (err) return cb ? cb(err) : null;
-                const rows = results ? results.rows : [];
+                const rows = results ? results.rows.map(normalizePgRow) : [];
                 rows.insertId = rows[0]?.id || null;
                 rows.affectedRows = results ? results.rowCount : 0;
                 if (cb) cb(null, rows, results);
@@ -137,7 +182,7 @@ const db = {
             const cleanedSql = translateSql(sql, 'supabase');
             pgPool.query(cleanedSql, params || [], (err, results) => {
                 if (err) return cb ? cb(err) : null;
-                const row = (results && Array.isArray(results.rows) && results.rows.length > 0) ? results.rows[0] : null;
+                const row = (results && Array.isArray(results.rows) && results.rows.length > 0) ? normalizePgRow(results.rows[0]) : null;
                 if (cb) cb(null, row);
             });
         } else if (activeEngine === 'mysql' && mysqlPool) {
@@ -165,7 +210,7 @@ const db = {
             const cleanedSql = translateSql(sql, 'supabase');
             pgPool.query(cleanedSql, params || [], (err, results) => {
                 if (err) return cb ? cb(err) : null;
-                const rows = results ? results.rows : [];
+                const rows = results ? results.rows.map(normalizePgRow) : [];
                 if (cb) cb(null, rows);
             });
         } else if (activeEngine === 'mysql' && mysqlPool) {
